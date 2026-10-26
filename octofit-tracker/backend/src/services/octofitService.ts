@@ -34,7 +34,7 @@ export async function createActivity(input: unknown) {
 }
 
 export async function listTeams() {
-  return Team.find().lean();
+  return Team.find().populate('members', 'name').lean();
 }
 
 export async function createTeam(input: unknown) {
@@ -52,15 +52,16 @@ export async function createTeam(input: unknown) {
   if (!Array.isArray(memberIds) || !memberIds.every(isObjectId)) {
     throw Object.assign(new Error('Team members must be valid user IDs'), { status: 400 });
   }
+  const uniqueMemberIds = [...new Set(memberIds.map((memberId) => memberId.toLowerCase()))];
 
-  if (memberIds.length > 0) {
-    const existingMembers = await User.find({ _id: { $in: memberIds } }).select('_id').lean();
-    if (existingMembers.length !== new Set(memberIds).size) {
+  if (uniqueMemberIds.length > 0) {
+    const existingMembers = await User.find({ _id: { $in: uniqueMemberIds } }).select('_id').lean();
+    if (existingMembers.length !== uniqueMemberIds.length) {
       throw Object.assign(new Error('One or more team members were not found'), { status: 404 });
     }
   }
 
-  return Team.create({ name, mascot, members: memberIds });
+  return Team.create({ name, mascot, members: uniqueMemberIds });
 }
 
 export async function getLeaderboard() {

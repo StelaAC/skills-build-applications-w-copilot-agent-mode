@@ -52,16 +52,17 @@ describe('OctoFit API contract', () => {
     }
   });
   it('creates teams and exposes members', async () => {
-    const member = await User.create({ name: 'Mona', email: 'mona@example.com', fitnessGoal: 'endurance' });
+    const memberId = new mongoose.Types.ObjectId('abcdefabcdefabcdefabcdef');
+    const member = await User.create({ _id: memberId, name: 'Mona', email: 'mona@example.com', fitnessGoal: 'endurance' });
     const invalid = await request(app).post('/api/teams').send({ mascot: 'Mona' });
     expect(invalid.status).toBe(400);
-    const created = await request(app).post('/api/teams').send({ name: 'Octocats', mascot: 'Mona', members: [member._id.toString()] });
+    const created = await request(app).post('/api/teams').send({ name: 'Octocats', mascot: 'Mona', members: [member._id.toString(), member._id.toString().toUpperCase()] });
     expect(created.status).toBe(201);
     expect(created.body.team).toMatchObject({ name: 'Octocats', mascot: 'Mona' });
     const listed = await request(app).get('/api/teams');
     expect(listed.body.teams).toHaveLength(1);
     expect(listed.body.teams[0]).toMatchObject({ name: 'Octocats', mascot: 'Mona' });
-    expect(listed.body.teams[0].members.map((id: string) => id.toString())).toContain(member._id.toString());
+    expect(listed.body.teams[0].members).toEqual([{ _id: member._id.toString(), name: 'Mona' }]);
   });
   it('orders leaderboard entries by total points', async () => {
     const mona = await createUserAndTeam('Mona', 'mona@example.com', 'Mona', 'Octocats');
