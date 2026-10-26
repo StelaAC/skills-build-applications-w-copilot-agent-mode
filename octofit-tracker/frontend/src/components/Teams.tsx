@@ -5,6 +5,7 @@ type Team = {
   _id?: string;
   name: string;
   mascot?: string;
+  memberNames?: string[];
   members?: Array<string | { _id: string; name: string }>;
 };
 
@@ -37,7 +38,7 @@ export default function Teams() {
       {teams.map((team, index) => <li className="list-group-item" key={team._id ?? `${team.name}-${index}`}>
         <h3 className="h6">{team.name}</h3>
         {team.mascot && <p className="mb-1">Mascot: {team.mascot}</p>}
-        <p className="mb-0">Members: {team.members?.map((member) => typeof member === 'string' ? member : member.name).join(', ') || 'None'}</p>
+        <p className="mb-0">Members: {team.memberNames?.join(', ') || team.members?.map((member) => typeof member === 'string' ? member : member.name).join(', ') || 'None'}</p>
       </li>)}
     </ul>}
   </div></section>;

@@ -34,7 +34,19 @@ export async function createActivity(input: unknown) {
 }
 
 export async function listTeams() {
-  return Team.find().populate('members', 'name').lean();
+  const teams = await Team.find().lean();
+  const memberIds = teams.flatMap((team) => team.members);
+  const members = memberIds.length === 0
+    ? []
+    : await User.find({ _id: { $in: memberIds } }).select('_id name').lean();
+  const namesById = new Map(members.map((member) => [String(member._id), member.name]));
+
+  return teams.map((team) => ({
+    ...team,
+    memberNames: team.members
+      .map((memberId) => namesById.get(String(memberId)))
+      .filter((name): name is string => name !== undefined),
+  }));
 }
 
 export async function createTeam(input: unknown) {
