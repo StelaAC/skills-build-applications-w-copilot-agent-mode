@@ -55,13 +55,35 @@ export async function createTeam(input: unknown) {
   const uniqueMemberIds = [...new Set(memberIds.map((memberId) => memberId.toLowerCase()))];
 
   if (uniqueMemberIds.length > 0) {
-    const existingMembers = await User.find({ _id: { $in: uniqueMemberIds } }).select('_id').lean();
+    const existingMembers = await User.find({ _id: { $in: uniqueMemberIds } }).select('_id team').lean();
     if (existingMembers.length !== uniqueMemberIds.length) {
       throw Object.assign(new Error('One or more team members were not found'), { status: 404 });
     }
+    if (existingMembers.some((member) => member.team)) {
+      throw Object.assign(new Error('One or more users already belong to a team'), { status: 409 });
+    }
   }
 
-  return Team.create({ name, mascot, members: uniqueMemberIds });
+  const team = await Team.create({ name, mascot, members: uniqueMemberIds });
+  if (uniqueMemberIds.length === 0) return team;
+
+  try {
+    const assignment = await User.updateMany(
+      { _id: { $in: uniqueMemberIds }, $or: [{ team: { $exists: false } }, { team: null }] },
+      { $set: { team: team._id } },
+    );
+    if (assignment.matchedCount !== uniqueMemberIds.length) {
+      throw Object.assign(new Error('One or more users already belong to a team'), { status: 409 });
+    }
+  } catch (error) {
+    await Promise.all([
+      User.updateMany({ _id: { $in: uniqueMemberIds }, team: team._id }, { $unset: { team: 1 } }),
+      Team.deleteOne({ _id: team._id }),
+    ]);
+    throw error;
+  }
+
+  return team;
 }
 
 export async function getLeaderboard() {
